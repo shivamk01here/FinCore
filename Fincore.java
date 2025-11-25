@@ -1,5 +1,8 @@
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.net.ServerSocket;
+import java.net.Socket;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -112,15 +115,16 @@ abstract class Account {
     public BigDecimal getBalance() { return balance; }
     public String getAccountNumber() { return accountNumber; }
     public String getOwnerName() { return ownerName; }
-
-    public void printStatement() {
-        System.out.println("\n--- STATEMENT FOR: " + ownerName + " (" + accountNumber + ") ---");
-        System.out.println("Current Balance: " + currency + " " + balance.setScale(2, RoundingMode.HALF_EVEN));
-        System.out.println("----------------------------------------------------------");
+    
+    // Returns string representation for network response
+    public String getStatementString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("--- STATEMENT FOR: ").append(ownerName).append(" (" ).append(accountNumber).append(") ---\n");
+        sb.append("Current Balance: ").append(currency).append(" ").append(balance.setScale(2, RoundingMode.HALF_EVEN)).append("\n");
         for (Transaction t : transactionHistory) {
-            System.out.println(t);
+            sb.append(t.toString()).append("\n");
         }
-        System.out.println("----------------------------------------------------------\n");
+        return sb.toString();
     }
 }
 
@@ -136,7 +140,6 @@ class SavingsAccount extends Account {
         BigDecimal interest = balance.multiply(INTEREST_RATE);
         if (interest.compareTo(BigDecimal.ZERO) > 0) {
             deposit(interest);
-            System.out.println("Interest applied to " + getAccountNumber() + ": " + interest);
         }
     }
 }
@@ -162,14 +165,12 @@ class CheckingAccount extends Account {
     public void applyEndOfMonthProcessing() {
         try {
             balance = balance.subtract(MAINTENANCE_FEE); 
-            System.out.println("Maintenance fee charged to " + getAccountNumber());
         } catch (Exception e) {}
     }
 }
 
 // ---------------------------------------------------------
-// 4. REPOSITORY LAYER (The "Persistence" Interface)
-// Separation of Concerns: This layer only cares about storing data.
+// 4. REPOSITORY LAYER
 // ---------------------------------------------------------
 interface AccountRepository {
     Account save(Account account);
@@ -177,10 +178,6 @@ interface AccountRepository {
     List<Account> findAll();
 }
 
-/**
- * In-Memory Implementation.
- * Later, we can swap this class with 'JdbcAccountRepository' without changing the Service!
- */
 class InMemoryAccountRepository implements AccountRepository {
     private final Map<String, Account> store = new ConcurrentHashMap<>();
 
@@ -202,15 +199,12 @@ class InMemoryAccountRepository implements AccountRepository {
 }
 
 // ---------------------------------------------------------
-// 5. SERVICE LAYER (Business Logic)
+// 5. SERVICE LAYER
 // ---------------------------------------------------------
 class BankingService {
-    // DEPENDENCY INJECTION PATTERN:
-    // The service doesn't know *how* accounts are stored, it just asks the repository.
     private final AccountRepository accountRepository;
     private final AtomicLong accountIdGenerator = new AtomicLong(1000);
 
-    // Constructor Injection
     public BankingService(AccountRepository accountRepository) {
         this.accountRepository = accountRepository;
     }
@@ -241,7 +235,6 @@ class BankingService {
         Account from = getAccount(fromAccNum);
         Account to = getAccount(toAccNum);
 
-        // Lock ordering (same as before)
         Account firstLock = fromAccNum.compareTo(toAccNum) < 0 ? from : to;
         Account secondLock = fromAccNum.compareTo(toAccNum) < 0 ? to : from;
 
@@ -251,50 +244,120 @@ class BankingService {
                 to.receiveTransfer(amount, fromAccNum);
             }
         }
-        // In a real DB, we would call accountRepository.save(from) here to persist changes
-        System.out.println("Transfer successful: " + amount + " from " + fromAccNum + " to " + toAccNum);
+    }
+}
+
+// ---------------------------------------------------------
+// 6. NETWORK LAYER (New Custom TCP Server)
+// ---------------------------------------------------------
+
+/**
+ * Handles individual client connections in a separate thread.
+ * This interprets raw strings (our protocol) and calls the BankingService.
+ */
+class ClientHandler implements Runnable {
+    private final Socket clientSocket;
+    private final BankingService bankingService;
+
+    public ClientHandler(Socket socket, BankingService service) {
+        this.clientSocket = socket;
+        this.bankingService = service;
     }
 
-    public void runEndOfMonthBatch() {
-        System.out.println("\nRunning End of Month Batch...");
-        for (Account acc : accountRepository.findAll()) {
-            acc.applyEndOfMonthProcessing();
+    @Override
+    public void run() {
+        try (
+            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true)
+        ) {
+            out.println("WELCOME TO FINCORE BANKING SYSTEM v2.0");
+            out.println("Commands: CREATE <type> <name> <curr>, DEPOSIT <id> <amt>, TRANSFER <from> <to> <amt>, BALANCE <id>");
+            
+            String inputLine;
+            while ((inputLine = in.readLine()) != null) {
+                try {
+                    String response = processCommand(inputLine);
+                    out.println("OK: " + response);
+                } catch (Exception e) {
+                    out.println("ERROR: " + e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Client disconnected: " + e.getMessage());
+        } finally {
+            try { clientSocket.close(); } catch (IOException e) { e.printStackTrace(); }
+        }
+    }
+
+    private String processCommand(String commandLine) throws Exception {
+        String[] parts = commandLine.trim().split("\\s+");
+        if (parts.length == 0) return "";
+        
+        String command = parts[0].toUpperCase();
+
+        switch (command) {
+            case "CREATE":
+                // Usage: CREATE SAVINGS Alice USD
+                if (parts.length < 4) throw new IllegalArgumentException("Usage: CREATE <TYPE> <NAME> <CURRENCY>");
+                String type = parts[1];
+                String name = parts[2]; // Limitation: Name cannot have spaces currently
+                Currency curr = Currency.valueOf(parts[3].toUpperCase());
+                Account newAcc = bankingService.createAccount(type, name, curr);
+                return "Account created ID: " + newAcc.getAccountNumber();
+
+            case "DEPOSIT":
+                // Usage: DEPOSIT 1001 500.00
+                if (parts.length < 3) throw new IllegalArgumentException("Usage: DEPOSIT <ID> <AMOUNT>");
+                Account depAcc = bankingService.getAccount(parts[1]);
+                BigDecimal depAmt = new BigDecimal(parts[2]);
+                depAcc.deposit(depAmt);
+                return "New Balance: " + depAcc.getBalance();
+
+            case "TRANSFER":
+                // Usage: TRANSFER 1001 1002 100.00
+                if (parts.length < 4) throw new IllegalArgumentException("Usage: TRANSFER <FROM> <TO> <AMOUNT>");
+                bankingService.transfer(parts[1], parts[2], new BigDecimal(parts[3]));
+                return "Transfer Successful";
+
+            case "BALANCE":
+                 // Usage: BALANCE 1001
+                 if (parts.length < 2) throw new IllegalArgumentException("Usage: BALANCE <ID>");
+                 Account balAcc = bankingService.getAccount(parts[1]);
+                 return "\n" + balAcc.getStatementString();
+
+            default:
+                throw new IllegalArgumentException("Unknown Command: " + command);
         }
     }
 }
 
 // ---------------------------------------------------------
-// 6. MAIN EXECUTION (Fincore App)
+// 7. MAIN APP (Starts the Server)
 // ---------------------------------------------------------
 public class FincoreApp {
+    private static final int PORT = 8080;
+
     public static void main(String[] args) {
-        System.out.println("Initializing Fincore Banking System...");
+        System.out.println("Starting Fincore Server on port " + PORT + "...");
 
-        // 1. Setup Dependencies (Manual Dependency Injection)
+        // 1. Initialize Core Layers
         AccountRepository repository = new InMemoryAccountRepository();
-        BankingService fincoreService = new BankingService(repository);
+        BankingService bankingService = new BankingService(repository);
 
-        try {
-            // 2. Create Users
-            Account alice = fincoreService.createAccount("SAVINGS", "Alice Engineer", Currency.USD);
-            Account bob = fincoreService.createAccount("CHECKING", "Bob Builder", Currency.USD);
+        // 2. Start TCP Server
+        try (ServerSocket serverSocket = new ServerSocket(PORT)) {
+            System.out.println("Server is running. Waiting for connections...");
 
-            System.out.println("Created Accounts: " + alice.getAccountNumber() + ", " + bob.getAccountNumber());
+            while (true) {
+                // BLOCKING CALL: Waits here until a client connects
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("New Client Connected: " + clientSocket.getInetAddress());
 
-            // 3. Transactions
-            alice.deposit(new BigDecimal("1000.00"));
-            bob.deposit(new BigDecimal("500.00"));
-
-            fincoreService.transfer(alice.getAccountNumber(), bob.getAccountNumber(), new BigDecimal("250.00"));
-
-            // 4. Batch Processing
-            fincoreService.runEndOfMonthBatch();
-
-            // 5. Reporting
-            alice.printStatement();
-            bob.printStatement();
-
-        } catch (Exception e) {
+                // Spawn a new Thread for this client
+                ClientHandler handler = new ClientHandler(clientSocket, bankingService);
+                new Thread(handler).start();
+            }
+        } catch (IOException e) {
             e.printStackTrace();
         }
     }
