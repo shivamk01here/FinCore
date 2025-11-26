@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Register - FinCore</title>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;700&family=Outfit:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Libraries -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                        display: ['Space Grotesk', 'sans-serif'],
+                        outfit: ['Outfit', 'sans-serif'],
+                    },
+                    colors: {
+                        zed: {
+                            bg: '#050505',
+                            card: '#0a0a0a',
+                            light: '#6ee7b7',
+                            main: '#10b981',
+                            dark: '#059669',
+                            primary: '#10b981',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050505;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(10, 10, 10, 0.4);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .input-field {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .input-field:focus {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: #10b981;
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center relative overflow-hidden">
+
+    <!-- Background Effects -->
+    <div
+        class="absolute inset-0 z-0 opacity-20 pointer-events-none bg-[radial-gradient(#10b981_1px,transparent_1px)] [background-size:24px_24px]">
+    </div>
+    <div
+        class="absolute top-0 left-0 w-[500px] h-[500px] bg-emerald-900/20 rounded-full blur-[120px] pointer-events-none">
+    </div>
+    <div
+        class="absolute bottom-0 right-0 w-[500px] h-[500px] bg-emerald-900/10 rounded-full blur-[120px] pointer-events-none">
+    </div>
+
+    <!-- Main Container -->
+    <div class="relative z-10 w-full max-w-md px-6">
+
+        <!-- Logo -->
+        <div class="flex items-center justify-center gap-2 mb-8">
+            <div class="w-10 h-10 rounded-full bg-[#10b981] flex items-center justify-center border-2 border-white/10">
+                <span class="text-white font-bold text-lg">F</span>
+            </div>
+            <span class="text-3xl font-bold tracking-tight text-white">FinCore</span>
+        </div>
+
+        <!-- Register Card -->
+        <div class="glass-panel p-8 rounded-3xl shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-[#10b981] to-[#34d399]"></div>
+
+            <h2 class="text-2xl font-bold text-white mb-2 text-center">Create Account</h2>
+            <p class="text-gray-400 text-sm text-center mb-8">Join the next generation of banking.</p>
+
+            <form class="space-y-5">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">First Name</label>
+                        <input type="text"
+                            class="w-full px-4 py-3 rounded-xl text-white placeholder-gray-600 input-field"
+                            placeholder="John">
+                    </div>
+                    <div class="space-y-1.5">
+                        <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Last Name</label>
+                        <input type="text"
+                            class="w-full px-4 py-3 rounded-xl text-white placeholder-gray-600 input-field"
+                            placeholder="Doe">
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Email Address</label>
+                    <input type="email" class="w-full px-4 py-3 rounded-xl text-white placeholder-gray-600 input-field"
+                        placeholder="john@example.com">
+                </div>
+
+                <div class="space-y-1.5">
+                    <label class="text-xs font-medium text-gray-400 uppercase tracking-wider">Password</label>
+                    <input type="password"
+                        class="w-full px-4 py-3 rounded-xl text-white placeholder-gray-600 input-field"
+                        placeholder="••••••••">
+                </div>
+
+                <div class="pt-2">
+                    <button type="submit"
+                        class="w-full bg-[#10b981] text-white py-3.5 rounded-xl font-bold hover:bg-[#059669] hover:scale-[1.02] transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                        Create Account
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-6 text-center">
+                <p class="text-gray-400 text-sm">
+                    Already have an account?
+                    <a href="login.html" class="text-[#10b981] font-medium hover:text-[#34d399] transition-colors">Log
+                        in</a>
+                </p>
+            </div>
+        </div>
+
+        <div class="mt-8 text-center">
+            <a href="index.html"
+                class="text-gray-500 hover:text-white text-sm transition-colors flex items-center justify-center gap-2">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Back to Home
+            </a>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+
+</html>

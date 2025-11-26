@@ -2,18 +2,19 @@ import java.math.BigDecimal;
 
 /**
  * THE MODEL
- * Represents the core business entity.
- * It is isolated from the Web, the Database, and the Service logic.
+ * Updated to include security credentials.
  */
 public class Account {
     private String id;
     private String owner;
     private BigDecimal balance;
+    private String passwordHash; // New Field
 
-    public Account(String id, String owner, BigDecimal balance) {
+    public Account(String id, String owner, BigDecimal balance, String passwordHash) {
         this.id = id;
         this.owner = owner;
         this.balance = balance;
+        this.passwordHash = passwordHash;
     }
 
     // Synchronized to ensure thread safety at the entity level
@@ -32,4 +33,5 @@ public class Account {
     public String getId() { return id; }
     public BigDecimal getBalance() { return balance; }
     public String getOwner() { return owner; }
+    public String getPasswordHash() { return passwordHash; }
 }

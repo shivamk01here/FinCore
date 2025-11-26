@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard - FinCore V4</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+    <nav>
+        <div class="logo">FinCore V4</div>
+        <button onclick="logout()" class="btn-sm">Logout</button>
+    </nav>
+    <div class="container dashboard-container">
+        <div class="hero-card">
+            <h1>Welcome, <span id="userFullName">User</span></h1>
+            <div class="balance-section">
+                <p>Available Balance</p>
+                <h2 id="balance">Loading...</h2>
+                <button onclick="fetchDashboard()" class="btn-sm">Refresh</button>
+            </div>
+            <p>VPA: <span id="userVpa"></span></p>
+        </div>
+
+        <div class="grid-layout">
+            <div class="card send-money">
+                <h3>Send Money</h3>
+                <form id="sendMoneyForm">
+                    <input type="text" id="receiverVpa" placeholder="Receiver VPA" required>
+                    <input type="number" id="amount" placeholder="Amount" required>
+                    <button type="submit" class="btn">Send</button>
+                </form>
+                <p id="txMsg"></p>
+            </div>
+
+            <div class="card notifications">
+                <h3>Notifications</h3>
+                <ul id="notifList">
+                    <li>Loading...</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card transactions">
+            <h3>Recent Transactions</h3>
+            <table id="txTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Amount</th>
+                        <th>From/To</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+    <script src="js/dashboard.js"></script>
+</body>
+
+</html>

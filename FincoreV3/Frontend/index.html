@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fincore Banking</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f3f4f6;
+            --card: #ffffff;
+            --text: #1f2937;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 { margin-top: 0; text-align: center; color: var(--primary); }
+        h2 { font-size: 1.2rem; margin-bottom: 1rem; }
+
+        .hidden { display: none; }
+
+        .form-group { margin-bottom: 1rem; }
+        label { display: block; margin-bottom: 0.5rem; font-weight: 600; font-size: 0.9rem; }
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            box-sizing: border-box; /* Fixes padding issues */
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background-color: #1d4ed8; }
+        
+        .secondary-btn {
+            background-color: transparent;
+            color: var(--primary);
+            margin-top: 1rem;
+        }
+        .secondary-btn:hover { background-color: #eff6ff; }
+
+        .logout-btn {
+            background-color: #ef4444;
+            margin-top: 2rem;
+        }
+        .logout-btn:hover { background-color: #dc2626; }
+
+        .balance-card {
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+        .balance-amount { font-size: 2.5rem; font-weight: bold; margin: 0.5rem 0; }
+
+        #errorMessage {
+            color: #dc2626;
+            text-align: center;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- ERROR MESSAGE -->
+        <div id="errorMessage"></div>
+
+        <!-- VIEW: LOGIN -->
+        <div id="loginView">
+            <h1>Fincore Login</h1>
+            <div class="form-group">
+                <label>Account ID</label>
+                <input type="text" id="loginId" placeholder="e.g. 1001">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="loginPass" placeholder="******">
+            </div>
+            <button onclick="handleLogin()">Login</button>
+            <button class="secondary-btn" onclick="switchView('registerView')">Create Account</button>
+        </div>
+
+        <!-- VIEW: REGISTER -->
+        <div id="registerView" class="hidden">
+            <h1>Create Account</h1>
+            <div class="form-group">
+                <label>Owner Name</label>
+                <input type="text" id="regName" placeholder="John Doe">
+            </div>
+            <div class="form-group">
+                <label>Password</label>
+                <input type="password" id="regPass" placeholder="******">
+            </div>
+            <div class="form-group">
+                <label>Initial Deposit</label>
+                <input type="number" id="regBalance" placeholder="1000">
+            </div>
+            <button onclick="handleRegister()">Register</button>
+            <button class="secondary-btn" onclick="switchView('loginView')">Back to Login</button>
+        </div>
+
+        <!-- VIEW: DASHBOARD -->
+        <div id="dashboardView" class="hidden">
+            <div class="balance-card">
+                <div>Total Balance</div>
+                <div class="balance-amount">$<span id="displayBalance">0.00</span></div>
+                <div style="font-size: 0.8rem; opacity: 0.8;">Account: <span id="displayId">---</span></div>
+                <div style="font-size: 0.8rem; opacity: 0.8;">Owner: <span id="displayOwner">---</span></div>
+            </div>
+
+            <h2>Transfer Money</h2>
+            <div class="form-group">
+                <label>Recipient ID</label>
+                <input type="text" id="transferTo" placeholder="Recipient Account ID">
+            </div>
+            <div class="form-group">
+                <label>Amount</label>
+                <input type="number" id="transferAmount" placeholder="0.00">
+            </div>
+            <button onclick="handleTransfer()">Send Money</button>
+
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "http://localhost:8080/api";
+        
+        // --- STATE MANAGEMENT ---
+        function switchView(viewId) {
+            document.querySelectorAll('.container > div[id$="View"]').forEach(el => el.classList.add('hidden'));
+            document.getElementById(viewId).classList.remove('hidden');
+            document.getElementById('errorMessage').innerText = "";
+        }
+
+        function checkAuth() {
+            const token = localStorage.getItem('fincore_token');
+            if (token) {
+                fetchBalance();
+                switchView('dashboardView');
+            } else {
+                switchView('loginView');
+            }
+        }
+
+        // --- API CALLS ---
+
+        async function handleLogin() {
+            const id = document.getElementById('loginId').value;
+            const pass = document.getElementById('loginPass').value;
+
+            try {
+                // Construct URL with Query Params (as per our Java backend design)
+                const res = await fetch(`${API_URL}/login?id=${id}&pass=${pass}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                localStorage.setItem('fincore_token', data.token);
+                checkAuth();
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        async function handleRegister() {
+            const name = document.getElementById('regName').value;
+            const pass = document.getElementById('regPass').value;
+            const bal = document.getElementById('regBalance').value;
+
+            try {
+                const res = await fetch(`${API_URL}/register?user=${name}&pass=${pass}&initial_balance=${bal}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                alert(`Account Created! Your ID is: ${data.id}. Please Login.`);
+                switchView('loginView');
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        async function fetchBalance() {
+            const token = localStorage.getItem('fincore_token');
+            if (!token) return handleLogout();
+
+            try {
+                const res = await fetch(`${API_URL}/balance?token=${token}`);
+                const data = await res.json();
+
+                if (data.error) {
+                    // Token likely invalid/expired
+                    handleLogout(); 
+                    return;
+                }
+
+                document.getElementById('displayBalance').innerText = data.balance;
+                document.getElementById('displayId').innerText = data.id;
+                document.getElementById('displayOwner').innerText = data.owner;
+            } catch (err) {
+                showError("Failed to fetch data");
+            }
+        }
+
+        async function handleTransfer() {
+            const token = localStorage.getItem('fincore_token');
+            const to = document.getElementById('transferTo').value;
+            const amount = document.getElementById('transferAmount').value;
+
+            try {
+                const res = await fetch(`${API_URL}/transfer?token=${token}&to=${to}&amount=${amount}`, { method: 'POST' });
+                const data = await res.json();
+
+                if (data.error) throw new Error(data.error);
+
+                alert('Transfer Successful!');
+                fetchBalance(); // Refresh UI
+                document.getElementById('transferAmount').value = "";
+                document.getElementById('transferTo').value = "";
+            } catch (err) {
+                showError(err.message);
+            }
+        }
+
+        function handleLogout() {
+            localStorage.removeItem('fincore_token');
+            switchView('loginView');
+        }
+
+        function showError(msg) {
+            document.getElementById('errorMessage').innerText = msg;
+        }
+
+        // Initialize App
+        checkAuth();
+
+    </script>
+</body>
+</html>
